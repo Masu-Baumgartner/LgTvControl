@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LgTvControl", "LgTvControl\LgTvControl.csproj", "{80465F3F-0C73-4BD6-935C-44940F5036AC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LGTvControl.Test", "LGTvControl.Test\LGTvControl.Test.csproj", "{8A8E1EC7-27DE-4412-9A7A-7313EC1A5ABA}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{80465F3F-0C73-4BD6-935C-44940F5036AC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{80465F3F-0C73-4BD6-935C-44940F5036AC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{80465F3F-0C73-4BD6-935C-44940F5036AC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{80465F3F-0C73-4BD6-935C-44940F5036AC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8A8E1EC7-27DE-4412-9A7A-7313EC1A5ABA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A8E1EC7-27DE-4412-9A7A-7313EC1A5ABA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A8E1EC7-27DE-4412-9A7A-7313EC1A5ABA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8A8E1EC7-27DE-4412-9A7A-7313EC1A5ABA}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

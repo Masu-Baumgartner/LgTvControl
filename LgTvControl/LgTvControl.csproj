@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <Title>LgTvControl</Title>
+        <Authors>Masu Baumgartner</Authors>
+        <Description>This library allows you to remote control your lg tv via their websocket and telnet api</Description>
+        <Copyright>Masu Baumgartner</Copyright>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="MoonCore" Version="1.7.1" />
+    </ItemGroup>
+
+</Project>

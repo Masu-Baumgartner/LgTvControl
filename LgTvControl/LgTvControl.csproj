@@ -9,8 +9,18 @@
         <Authors>Masu Baumgartner</Authors>
         <Description>This library allows you to remote control your lg tv via their websocket and telnet api</Description>
         <Copyright>Masu Baumgartner</Copyright>
+        <PackageProjectUrl>https://github.com/Masu-Baumgartner/LgTvControl</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/Masu-Baumgartner/LgTvControl</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageTags>lg;television;lgconnect</PackageTags>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
     </PropertyGroup>
 
+    <ItemGroup>
+        <None Include="../README.md" Pack="true" PackagePath="\"/>
+    </ItemGroup>
+    
     <ItemGroup>
       <PackageReference Include="MoonCore" Version="1.7.1" />
     </ItemGroup>

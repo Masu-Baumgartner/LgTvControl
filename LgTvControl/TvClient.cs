@@ -144,7 +144,7 @@ public class TvClient
 
     public async Task ShowToast(string message)
     {
-        await WebSocket.Request("system.notifications/createToast", new CreateToastRequest()
+        await WebSocket.Request("ssap://system.notifications/createToast", new CreateToastRequest()
         {
             Message = message
         });

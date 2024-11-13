@@ -94,7 +94,7 @@ tv.OnWebSocketStateChanged += async state =>
 {
     if (state == WebsocketTvState.Ready)
     {
-        await tv.Screenshot(async s => logger.LogDebug("Screenshot available at: {uri}", s));
+        await tv.ShowToast("testy");
     }
 };
 

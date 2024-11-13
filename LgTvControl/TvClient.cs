@@ -181,6 +181,9 @@ public class TvClient
     public async Task TurnOff()
         => await WebSocket.Request("ssap://system/turnOff");
 
+    public async Task SendCommand(TelnetTvCommand command)
+        => await Telnet.Send(command);
+
     public async Task Disconnect()
     {
         Logger.LogTrace("Disconnecting from television");

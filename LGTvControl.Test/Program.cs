@@ -94,7 +94,7 @@ tv.OnWebSocketStateChanged += async state =>
 {
     if (state == WebsocketTvState.Ready)
     {
-        await tv.ShowToast("testy");
+        await tv.Screenshot(async s => Console.WriteLine(s));
     }
 };
 

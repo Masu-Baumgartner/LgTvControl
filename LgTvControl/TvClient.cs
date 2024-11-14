@@ -34,6 +34,8 @@ public class TvClient
     private readonly TelnetTvClient Telnet;
     private readonly WebSocketTvClient WebSocket;
 
+    private CancellationTokenSource? PairingTimeout;
+
     public TvClient(ILogger logger, string host, string macAddress, int websocketPort = 3000, int telnetPort = 9761)
     {
         Logger = logger;
@@ -50,6 +52,8 @@ public class TvClient
     {
         WebSocket.OnStateChanged += async state =>
         {
+            Logger.LogDebug("State: {state}", state);
+            
             if (state == WebsocketTvState.Connected)
             {
                 PairingRequest? request = null;
@@ -60,6 +64,51 @@ public class TvClient
                 request = request ?? new();
 
                 await WebSocket.Pair(request);
+
+                // Setup timeout for pairing
+                PairingTimeout = new();
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(5), PairingTimeout.Token);
+
+                        // Ignore every non pairing state
+                        if(WebSocket.State != WebsocketTvState.Pairing)
+                            return;
+                        
+                        Logger.LogTrace("Reconnecting websocket after pairing timeout");
+                        await WebSocket.CloseCurrentSocket();
+                    }
+                    catch(OperationCanceledException){}
+                    catch (Exception e)
+                    {
+                        Logger.LogError("An unknown error occured while handling pairing timeout: {e}", e);
+                    }
+                });
+            }
+            else if (state == WebsocketTvState.Offline)
+            {
+                if (Telnet.IsConnected)
+                    await Telnet.Disconnect();
+            }
+            else if (state == WebsocketTvState.Pairing)
+            {
+                await Telnet.Connect();
+            }
+
+            if (PairingTimeout != null)
+            {
+                if (state == WebsocketTvState.Ready)
+                {
+                    // Cancel timeout as we successfully paired
+                    await PairingTimeout.CancelAsync();
+                }
+                else if(state == WebsocketTvState.Offline)
+                {
+                    // Cancel when the connection dropped
+                    await PairingTimeout.CancelAsync();
+                }
             }
         };
 
@@ -75,11 +124,13 @@ public class TvClient
                 if (AcceptMode == TvPairAcceptMode.DownEnter)
                 {
                     await Telnet.Send(TelnetTvCommand.Down);
+                    await Task.Delay(100);
                     await Telnet.Send(TelnetTvCommand.Enter);
                 }
                 else if(AcceptMode == TvPairAcceptMode.RightEnter)
                 {
                     await Telnet.Send(TelnetTvCommand.Right);
+                    await Task.Delay(100);
                     await Telnet.Send(TelnetTvCommand.Enter);
                 }
             }

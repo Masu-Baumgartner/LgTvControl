@@ -95,6 +95,9 @@ public partial class WebSocketTvClient
                         Array.Copy(buffer, resizedBuffer, resizedBuffer.Length);
 
                         var text = Encoding.UTF8.GetString(resizedBuffer);
+                        
+                        if(string.IsNullOrEmpty(text))
+                            continue;
 
                         Logger.LogTrace("Received raw text: {text}", text);
 
@@ -153,6 +156,11 @@ public partial class WebSocketTvClient
                         {
                             Logger.LogTrace("Waiting for pairing request to be accepted");
                             await UpdateState(WebsocketTvState.Pairing);
+                        }
+                        else if (text.Contains("403 too many pairing requests"))
+                        {
+                            Logger.LogTrace("Tv is reporting too many connection attempts. Closing connection");
+                            await CloseCurrentSocket();
                         }
                         else
                         {
@@ -218,7 +226,7 @@ public partial class WebSocketTvClient
                     }
                     catch (WebSocketException e)
                     {
-                        Logger.LogWarning("Websocket error occured: {e}", e);
+                        Logger.LogTrace("Websocket error occured: {e}", e);
                     }
                     catch (OperationCanceledException)
                     {
@@ -241,6 +249,12 @@ public partial class WebSocketTvClient
         Cancellation.Cancel();
 
         return Task.CompletedTask;
+    }
+
+    public async Task CloseCurrentSocket()
+    {
+        if(Connection.State == WebSocketState.Open)
+            await Connection.CloseOutputAsync(WebSocketCloseStatus.Empty, null, Cancellation.Token);
     }
 
     public async Task Pair(PairingRequest request)

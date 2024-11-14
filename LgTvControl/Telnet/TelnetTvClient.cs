@@ -26,6 +26,8 @@ public class TelnetTvClient
         await Disconnect();
 
         TcpClient = new();
+        TcpClient.ReceiveTimeout = 1000;
+        TcpClient.SendTimeout = 1000;
 
         await TcpClient.ConnectAsync(IpAddress, Port);
 
@@ -55,17 +57,44 @@ public class TelnetTvClient
         if (TcpClient == null || !TcpClient.Connected)
             await Connect();
 
-        var networkStream = TcpClient!.GetStream();
+        try
+        {
+            await SendText(command);
+            await SendText("\n\n");
+        }
+        catch (Exception)
+        {
+            Logger.LogTrace("An error occured while sending command. Reconnecting and trying it again");
 
-        var encodedCommand = Encoding.UTF8.GetBytes(command + "\n");
+            try
+            {
+                await Disconnect();
+                await Connect();
 
-        await networkStream.WriteAsync(encodedCommand);
-        await networkStream.FlushAsync();
+                await SendText(command);
+                await SendText("\n\n");
+            }
+            catch (Exception e)
+            {
+                Logger.LogTrace("An error occured while sending packet (even after reconnecting): {e}", e);
+                throw;
+            }
+        }
     }
 
     public Task Send(TelnetTvCommand command)
         => Send(EnumToCommand(command));
 
+    private async Task SendText(string input)
+    {
+        var networkStream = TcpClient!.GetStream();
+
+        var encodedCommand = Encoding.UTF8.GetBytes(input);
+
+        await networkStream.WriteAsync(encodedCommand);
+        await networkStream.FlushAsync();
+    }
+    
     private string EnumToCommand(TelnetTvCommand command)
     {
         return command switch

@@ -17,8 +17,8 @@ loggerFactory.AddProviders(LoggerBuildHelper.BuildFromConfiguration(configuratio
 }));
 
 var logger = loggerFactory.CreateLogger("Test");
-/*
-var tv = new TelnetTvClient(logger, "172.27.69.50");
+
+var tv = new TelnetTvClient(logger, "172.27.66.28");
 
 while (true)
 {
@@ -56,8 +56,8 @@ while (true)
             await tv.Send(TelnetTvCommand.Menu);
             break;
     }
-}*/
-
+}
+/*
 var tv = new TvClient(logger, "172.27.69.50", "");
 
 tv.AcceptMode = TvPairAcceptMode.DownEnter;
@@ -92,12 +92,9 @@ tv.OnChannelChanged += async x =>
 
 tv.OnWebSocketStateChanged += async state =>
 {
-    if (state == WebsocketTvState.Ready)
-    {
-        await tv.Screenshot(async s => Console.WriteLine(s));
-    }
+    
 };
 
 await tv.Connect();
-
+*/
 await Task.Delay(-1);

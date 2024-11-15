@@ -48,6 +48,7 @@ public partial class WebSocketTvClient
         Cancellation = new();
 
         Task.Run(Loop);
+        Task.Run(KeepAliveLoop);
 
         return Task.CompletedTask;
     }
@@ -259,6 +260,43 @@ public partial class WebSocketTvClient
 
     public async Task Pair(PairingRequest request)
         => await SendBasePacket("register", request);
+
+    public async Task KeepAliveLoop()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(5));
+        
+        while (!Cancellation.IsCancellationRequested)
+        {
+            var keepAliveTimeout = new CancellationTokenSource();
+
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(5), keepAliveTimeout.Token);
+
+                    if (!keepAliveTimeout.IsCancellationRequested)
+                    {
+                        Logger.LogTrace("Reached keep alive timeout. Reconnecting");
+                        await CloseCurrentSocket();
+                    }
+                }
+                catch(OperationCanceledException){}
+                catch (Exception e)
+                {
+                    Logger.LogError("An error occured while handling keep alive occured: {e}", e);
+                }
+            });
+            
+            await RequestWithResult<SystemInfoResponse>("ssap://system/getSystemInfo", null, async response =>
+            {
+                if (!keepAliveTimeout.IsCancellationRequested)
+                    await keepAliveTimeout.CancelAsync();
+            });
+            
+            await Task.Delay(TimeSpan.FromSeconds(30));
+        }
+    }
 
     private async Task UpdateState(WebsocketTvState state)
     {

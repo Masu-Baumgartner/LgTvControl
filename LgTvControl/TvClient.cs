@@ -17,6 +17,7 @@ public class TvClient
     // Events
     public event Func<WebsocketTvState, Task> OnWebSocketStateChanged;
     public event Func<string, Task> OnClientKeyChanged;
+    public event Func<bool, Task> OnScreenStateChanged;
     public event Func<int, Task> OnChannelChanged;
     public event Func<int, Task> OnVolumeChanged;
     public event Func<string, Task> OnUnknownPacketReceived;
@@ -26,6 +27,7 @@ public class TvClient
     public bool TelnetConnected => Telnet.IsConnected;
     public int Volume => WebSocket.CurrentVolume;
     public int Channel => WebSocket.CurrentChannel;
+    public bool ScreenState => WebSocket.CurrentScreenState;
 
     private readonly ILogger Logger;
     private readonly string Host;
@@ -112,6 +114,12 @@ public class TvClient
                     await PairingTimeout.CancelAsync();
                 }
             }
+        };
+
+        WebSocket.OnScreenStateChanged += async state =>
+        {
+            if (OnScreenStateChanged != null)
+                await OnScreenStateChanged.Invoke(state);
         };
 
         WebSocket.OnStateChanged += async state =>

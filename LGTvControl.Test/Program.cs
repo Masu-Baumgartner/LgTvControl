@@ -100,9 +100,9 @@ var logger = loggerFactory.CreateLogger("Test");
 // 172.27.69.50
 // 172.27.21.53
 
-var tv = new TvClient(logger, "172.27.21.53", "");
+var tv = new TvClient(logger, "172.27.69.50", "");
 
-tv.AcceptMode = TvPairAcceptMode.RightEnter;
+tv.AcceptMode = TvPairAcceptMode.DownEnter;
 
 tv.OnCreatePairingRequest = async () =>
 {
@@ -121,21 +121,16 @@ tv.OnVolumeChanged += x =>
     return Task.CompletedTask;
 };
 
-tv.OnChannelChanged += async x =>
+tv.OnChannelChanged += x =>
 {
-    
+    logger.LogDebug("Channel: {channel}", x);
+    return Task.CompletedTask;
 };
 
-tv.OnWebSocketStateChanged += async state =>
+tv.OnScreenStateChanged += b =>
 {
-    if (state == WebsocketTvState.Ready)
-    {
-        Task.Run(async () =>
-        {
-            await tv.ScreenOff();
-            await tv.SetChannel(1);
-        });
-    }
+    logger.LogDebug("Screen: {b}", b);
+    return Task.CompletedTask;
 };
 
 await tv.Connect();

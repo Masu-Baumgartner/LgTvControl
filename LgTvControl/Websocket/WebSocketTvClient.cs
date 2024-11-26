@@ -18,9 +18,11 @@ public partial class WebSocketTvClient
     public WebsocketTvState State { get; set; }
     public int CurrentChannel { get; set; } = -1;
     public int CurrentVolume { get; set; } = -1;
-    
+    public bool CurrentScreenState { get; set; }
+
     public event Func<WebsocketTvState, Task> OnStateChanged;
     public event Func<string, Task> OnClientKeyChanged;
+    public event Func<bool, Task> OnScreenStateChanged;
     public event Func<int, Task> OnChannelChanged;
     public event Func<VolumeChangeEvent, Task> OnVolumeChanged;
     public event Func<string, Task> OnUnknownPacketReceived;
@@ -96,8 +98,8 @@ public partial class WebSocketTvClient
                         Array.Copy(buffer, resizedBuffer, resizedBuffer.Length);
 
                         var text = Encoding.UTF8.GetString(resizedBuffer);
-                        
-                        if(string.IsNullOrEmpty(text))
+
+                        if (string.IsNullOrEmpty(text))
                             continue;
 
                         Logger.LogTrace("Received raw text: {text}", text);
@@ -109,6 +111,12 @@ public partial class WebSocketTvClient
 
                         if (basePacket.Type == "registered")
                         {
+                            // Clear previous subscriptions
+                            lock (Subscriptions)
+                            {
+                                Subscriptions.Clear();
+                            }
+                            
                             await UpdateState(WebsocketTvState.Ready);
 
                             var pairingResponse = JsonSerializer.Deserialize<TypedBasePacket<PairingResponse>>(text);
@@ -119,16 +127,35 @@ public partial class WebSocketTvClient
                                 continue;
                             }
 
-                            if(OnClientKeyChanged != null)
+                            if (OnClientKeyChanged != null)
                                 await OnClientKeyChanged.Invoke(pairingResponse.Payload.ClientKey);
+
+                            await Subscribe<PowerStateResponse>("ssap://com.webos.service.tvpower/power/getPowerState",
+                                new PowerStateRequest()
+                                {
+                                    Subscribe = true
+                                },
+                                async response =>
+                                {
+                                    CurrentScreenState = response.State.Equals(
+                                        "Active",
+                                        StringComparison.InvariantCultureIgnoreCase
+                                    );
+
+                                    if (OnScreenStateChanged == null)
+                                        return;
+
+                                    await OnScreenStateChanged.Invoke(CurrentScreenState);
+                                }
+                            );
 
                             await Subscribe<CurrentChannelResponse>("ssap://tv/getCurrentChannel", async response =>
                             {
                                 CurrentChannel = int.Parse(response.ChannelNumber);
-                                
-                                if(OnChannelChanged == null)
+
+                                if (OnChannelChanged == null)
                                     return;
-                                
+
                                 await OnChannelChanged.Invoke(CurrentChannel);
                             });
 
@@ -145,7 +172,7 @@ public partial class WebSocketTvClient
 
                                 if (OnVolumeChanged == null)
                                     return;
-                                
+
                                 await OnVolumeChanged.Invoke(new VolumeChangeEvent()
                                 {
                                     Volume = CurrentVolume,
@@ -182,9 +209,9 @@ public partial class WebSocketTvClient
 
                             if (subscription == null)
                             {
-                                if(OnUnknownPacketReceived == null)
+                                if (OnUnknownPacketReceived == null)
                                     continue;
-                                
+
                                 await OnUnknownPacketReceived.Invoke(text);
                             }
                             else
@@ -259,7 +286,7 @@ public partial class WebSocketTvClient
 
     public async Task CloseCurrentSocket()
     {
-        if(Connection.State == WebSocketState.Open)
+        if (Connection.State == WebSocketState.Open)
             await Connection.CloseOutputAsync(WebSocketCloseStatus.Empty, null, Cancellation.Token);
     }
 
@@ -269,7 +296,7 @@ public partial class WebSocketTvClient
     public async Task KeepAliveLoop()
     {
         await Task.Delay(TimeSpan.FromSeconds(5));
-        
+
         while (!Cancellation.IsCancellationRequested)
         {
             var keepAliveTimeout = new CancellationTokenSource();
@@ -286,19 +313,21 @@ public partial class WebSocketTvClient
                         await CloseCurrentSocket();
                     }
                 }
-                catch(OperationCanceledException){}
+                catch (OperationCanceledException)
+                {
+                }
                 catch (Exception e)
                 {
                     Logger.LogError("An error occured while handling keep alive occured: {e}", e);
                 }
             });
-            
+
             await RequestWithResult<SystemInfoResponse>("ssap://system/getSystemInfo", null, async response =>
             {
                 if (!keepAliveTimeout.IsCancellationRequested)
                     await keepAliveTimeout.CancelAsync();
             });
-            
+
             await Task.Delay(TimeSpan.FromSeconds(30));
         }
     }
@@ -306,10 +335,10 @@ public partial class WebSocketTvClient
     private async Task UpdateState(WebsocketTvState state)
     {
         State = state;
-        
-        if(OnStateChanged == null)
+
+        if (OnStateChanged == null)
             return;
-        
+
         await OnStateChanged.Invoke(State);
     }
 

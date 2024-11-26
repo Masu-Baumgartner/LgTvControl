@@ -48,7 +48,7 @@ public partial class WebSocketTvClient
         Cancellation = new();
 
         Task.Run(Loop);
-        Task.Run(KeepAliveLoop);
+        //Task.Run(KeepAliveLoop);
 
         return Task.CompletedTask;
     }
@@ -160,7 +160,12 @@ public partial class WebSocketTvClient
                         }
                         else if (text.Contains("403 too many pairing requests"))
                         {
-                            Logger.LogTrace("Tv is reporting too many connection attempts. Closing connection");
+                            Logger.LogTrace("TV is reporting too many connection attempts. Closing connection");
+                            await CloseCurrentSocket();
+                        }
+                        else if (text.Contains("403 Error!! power state"))
+                        {
+                            Logger.LogTrace("TV is reporting an invalid power state. Closing connection");
                             await CloseCurrentSocket();
                         }
                         else

@@ -13,14 +13,14 @@ public class TvClient
 {
     public Func<Task<PairingRequest>>? OnCreatePairingRequest { get; set; }
     public TvPairAcceptMode AcceptMode { get; set; } = TvPairAcceptMode.Never;
-    
+
     // Events
     public event Func<WebsocketTvState, Task> OnWebSocketStateChanged;
     public event Func<string, Task> OnClientKeyChanged;
     public event Func<int, Task> OnChannelChanged;
     public event Func<int, Task> OnVolumeChanged;
     public event Func<string, Task> OnUnknownPacketReceived;
-    
+
     // Proxy properties
     public WebsocketTvState WebsocketState => WebSocket.State;
     public bool TelnetConnected => Telnet.IsConnected;
@@ -53,7 +53,7 @@ public class TvClient
         WebSocket.OnStateChanged += async state =>
         {
             Logger.LogDebug("State: {state}", state);
-            
+
             if (state == WebsocketTvState.Connected)
             {
                 PairingRequest? request = null;
@@ -74,13 +74,15 @@ public class TvClient
                         await Task.Delay(TimeSpan.FromSeconds(5), PairingTimeout.Token);
 
                         // Ignore every non pairing state
-                        if(WebSocket.State != WebsocketTvState.Pairing)
+                        if (WebSocket.State != WebsocketTvState.Pairing)
                             return;
-                        
+
                         Logger.LogTrace("Reconnecting websocket after pairing timeout");
                         await WebSocket.CloseCurrentSocket();
                     }
-                    catch(OperationCanceledException){}
+                    catch (OperationCanceledException)
+                    {
+                    }
                     catch (Exception e)
                     {
                         Logger.LogError("An unknown error occured while handling pairing timeout: {e}", e);
@@ -104,7 +106,7 @@ public class TvClient
                     // Cancel timeout as we successfully paired
                     await PairingTimeout.CancelAsync();
                 }
-                else if(state == WebsocketTvState.Offline)
+                else if (state == WebsocketTvState.Offline)
                 {
                     // Cancel when the connection dropped
                     await PairingTimeout.CancelAsync();
@@ -120,34 +122,36 @@ public class TvClient
             if (state == WebsocketTvState.Pairing && AcceptMode != TvPairAcceptMode.Never)
             {
                 Logger.LogTrace("Auto accepting with accept mode: {mode}", AcceptMode);
-                
+
                 if (AcceptMode == TvPairAcceptMode.DownEnter)
                 {
                     await Telnet.Send(TelnetTvCommand.Down);
                     await Task.Delay(100);
                     await Telnet.Send(TelnetTvCommand.Enter);
                 }
-                else if(AcceptMode == TvPairAcceptMode.RightEnter)
+                else if (AcceptMode == TvPairAcceptMode.RightEnter)
                 {
                     await Telnet.Send(TelnetTvCommand.Right);
-                    await Task.Delay(100);
+
+                    await Task.Delay(500);
+
                     await Telnet.Send(TelnetTvCommand.Enter);
                 }
             }
         };
-        
+
         WebSocket.OnChannelChanged += async channel =>
         {
             if (OnChannelChanged != null)
                 await OnChannelChanged.Invoke(channel);
         };
-        
+
         WebSocket.OnVolumeChanged += async eventData =>
         {
             if (OnVolumeChanged != null)
                 await OnVolumeChanged.Invoke(eventData.Volume);
         };
-        
+
         WebSocket.OnClientKeyChanged += async clientKey =>
         {
             if (OnClientKeyChanged != null)
@@ -169,6 +173,24 @@ public class TvClient
         await Telnet.Connect();
     }
 
+    public async Task ScreenOn()
+    {
+        await WebSocket.Request("ssap://com.webos.service.tvpower/power/turnOnScreen");
+    }
+
+    public async Task ScreenOff()
+    {
+        await WebSocket.Request("ssap://com.webos.service.tvpower/power/turnOffScreen");
+    }
+
+    public async Task RequestPowerState(Func<string, Task> onCallback)
+    {
+        await WebSocket.RequestWithResult<PowerStateResponse>("ssap://com.webos.service.tvpower/power/getPowerState",
+            null,
+            async response => { await onCallback.Invoke(response.State); }
+        );
+    }
+
     public async Task SetVolume(int volume)
     {
         await WebSocket.Request("ssap://audio/setVolume", new SetVolumeRequest()
@@ -176,7 +198,7 @@ public class TvClient
             Volume = volume
         });
     }
-    
+
     public async Task SetChannel(int channel)
     {
         await WebSocket.Request("ssap://tv/openChannel", new OpenChannelRequest()
@@ -187,10 +209,8 @@ public class TvClient
 
     public async Task Screenshot(Func<string, Task> onHandle)
     {
-        await WebSocket.RequestWithResult<OneShotResponse>("ssap://tv/executeOneShot", null, async response =>
-        {
-            await onHandle.Invoke(response.ImageUri);
-        });
+        await WebSocket.RequestWithResult<OneShotResponse>("ssap://tv/executeOneShot", null,
+            async response => { await onHandle.Invoke(response.ImageUri); });
     }
 
     public async Task ShowToast(string message)
@@ -233,6 +253,9 @@ public class TvClient
         => await WebSocket.Request("ssap://system/turnOff");
 
     public async Task SendCommand(TelnetTvCommand command)
+        => await Telnet.Send(command);
+
+    public async Task SendCommandRaw(string command)
         => await Telnet.Send(command);
 
     public async Task Disconnect()

@@ -59,8 +59,7 @@ public class TelnetTvClient
 
         try
         {
-            await SendText(command);
-            await SendText("\n\n");
+            await SendText(command + "\n");
         }
         catch (Exception)
         {
@@ -71,8 +70,7 @@ public class TelnetTvClient
                 await Disconnect();
                 await Connect();
 
-                await SendText(command);
-                await SendText("\n\n");
+                await SendText(command + "\n");
             }
             catch (Exception e)
             {

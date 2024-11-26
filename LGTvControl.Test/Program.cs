@@ -1,4 +1,6 @@
-﻿using System.Text.Json;
+﻿using System.Net;
+using System.Net.Sockets;
+using System.Text.Json;
 using LgTvControl;
 using LgTvControl.Telnet;
 using LgTvControl.Websocket;
@@ -7,7 +9,33 @@ using LgTvControl.Websocket.Payloads.ServerBound;
 using Microsoft.Extensions.Logging;
 using MoonCore.Extensions;
 using MoonCore.Helpers;
+/*
+// Split MAC address into array of bytes
+var macBytes = "b0:37:95:13:71:f1".Split(':')
+    .Select(s => Convert.ToByte(s, 16))
+    .ToArray();
 
+// Create magic packet
+var magicPacket = new byte[102];
+
+// Add 6 bytes of 0xFF to the beginning of the packet
+for (var i = 0; i < 6; i++)
+{
+    magicPacket[i] = 0xFF;
+}
+
+// Repeat target device's MAC address 16 times
+for (var i = 6; i < 102; i += 6)
+{
+    Array.Copy(macBytes, 0, magicPacket, i, 6);
+}
+
+// Create UDP client and send magic packet to port 9 on the target device's subnet
+using var udpClient = new UdpClient();
+udpClient.EnableBroadcast = true;
+await udpClient.SendAsync(magicPacket, magicPacket.Length, new IPEndPoint(IPAddress.Parse("172.18.112.251"), 9));
+*/
+/*
 var loggerFactory = new LoggerFactory();
 loggerFactory.AddProviders(LoggerBuildHelper.BuildFromConfiguration(configuration =>
 {
@@ -17,7 +45,7 @@ loggerFactory.AddProviders(LoggerBuildHelper.BuildFromConfiguration(configuratio
 }));
 
 var logger = loggerFactory.CreateLogger("Test");
-/*
+
 var tv = new TelnetTvClient(logger, "172.27.66.28");
 
 while (true)
@@ -58,9 +86,23 @@ while (true)
     }
 }*/
 
-var tv = new TvClient(logger, "172.27.69.50", "");
+var loggerFactory = new LoggerFactory();
+loggerFactory.AddProviders(LoggerBuildHelper.BuildFromConfiguration(configuration =>
+{
+    configuration.Console.Enable = true;
+    configuration.Console.EnableAnsiMode = true;
+    configuration.FileLogging.Enable = false;
+}));
 
-tv.AcceptMode = TvPairAcceptMode.DownEnter;
+var logger = loggerFactory.CreateLogger("Test");
+
+// 172.27.13.9
+// 172.27.69.50
+// 172.27.21.53
+
+var tv = new TvClient(logger, "172.27.21.53", "");
+
+tv.AcceptMode = TvPairAcceptMode.RightEnter;
 
 tv.OnCreatePairingRequest = async () =>
 {
@@ -81,13 +123,7 @@ tv.OnVolumeChanged += x =>
 
 tv.OnChannelChanged += async x =>
 {
-    logger.LogDebug("Channel: {vol}", x);
-
-    if (x == 1)
-    {
-        await tv.SetChannel(5);
-        await tv.ShowToast("You are not allowed to change the channel. This incident has been logged");
-    }
+    
 };
 
 tv.OnWebSocketStateChanged += async state =>
@@ -96,16 +132,8 @@ tv.OnWebSocketStateChanged += async state =>
     {
         Task.Run(async () =>
         {
-            while (true)
-            {
-                await tv.Screenshot(s =>
-                {
-                    Console.WriteLine(s);
-                    return Task.CompletedTask;
-                });
-                
-                await Task.Delay(TimeSpan.FromSeconds(2));
-            }
+            await tv.ScreenOff();
+            await tv.SetChannel(1);
         });
     }
 };

@@ -188,6 +188,10 @@ public partial class WebSocketTvClient
                         else if (text.Contains("403 too many pairing requests"))
                         {
                             Logger.LogTrace("TV is reporting too many connection attempts. Closing connection");
+
+                            // Lets wait a bit until we retry as we dont want to open too many connections
+                            await Task.Delay(TimeSpan.FromSeconds(3), Cancellation.Token);
+                            
                             await CloseCurrentSocket();
                         }
                         else if (text.Contains("403 Error!! power state"))

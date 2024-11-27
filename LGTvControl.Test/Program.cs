@@ -99,10 +99,13 @@ var logger = loggerFactory.CreateLogger("Test");
 // 172.27.13.9
 // 172.27.69.50
 // 172.27.21.53
+// 172.27.13.2
 
-var tv = new TvClient(logger, "172.27.69.50", "");
+var tv = new TvClient(logger, "172.27.13.2", "b4:b2:91:7b:09:e7");
 
-tv.AcceptMode = TvPairAcceptMode.DownEnter;
+tv.AcceptMode = TvPairAcceptMode.RightEnter;
+
+await tv.TurnOn();
 
 tv.OnCreatePairingRequest = async () =>
 {
@@ -110,7 +113,7 @@ tv.OnCreatePairingRequest = async () =>
         await File.ReadAllTextAsync("pairing.json")
     )!;
 
-    paringRequest.ClientKey = "81cc63d0de8da3117473925398d782ce";
+    paringRequest.ClientKey = "81cc63d0de8da31174733434343782ce";
 
     return paringRequest;
 };

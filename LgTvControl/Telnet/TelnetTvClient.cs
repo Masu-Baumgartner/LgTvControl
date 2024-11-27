@@ -1,99 +1,56 @@
 using System.Net.Sockets;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using PrimS.Telnet;
 
 namespace LgTvControl.Telnet;
 
 public class TelnetTvClient
 {
-    public bool IsConnected => TcpClient?.Connected ?? false;
-    
     private readonly string IpAddress;
     private readonly int Port;
     private readonly ILogger Logger;
-    
-    private TcpClient? TcpClient;
-    
-    public TelnetTvClient(ILogger logger, string ipAddress, int port = 9761)
+
+    private CancellationTokenSource? Cancellation;
+    private PrimS.Telnet.Client? Client;
+    private PrimS.Telnet.TcpByteStream? TcpByteStream;
+
+    public bool IsConnected => TcpByteStream?.Connected ?? false;
+
+    public TelnetTvClient(string ipAddress, int port, ILogger logger)
     {
-        Logger = logger;
         IpAddress = ipAddress;
         Port = port;
+        Logger = logger;
     }
 
-    public async Task Connect()
+    public Task Connect()
     {
-        await Disconnect();
-
-        TcpClient = new();
-        TcpClient.ReceiveTimeout = 1000;
-        TcpClient.SendTimeout = 1000;
-
-        await TcpClient.ConnectAsync(IpAddress, Port);
-
-        if (!TcpClient.Connected)
-        {
-            Logger.LogWarning("Lost connection");
-            return;
-        }
-    }
-
-    public Task Disconnect()
-    {
-        if(TcpClient == null)
-            return Task.CompletedTask;
-
-        if (TcpClient.Connected)
-            TcpClient.Close();
-        
-        TcpClient.Dispose();
-        TcpClient = null;
+        TcpByteStream = new(IpAddress, Port);
+        Cancellation = new CancellationTokenSource();
+        Client = new Client(TcpByteStream, Cancellation.Token);
         
         return Task.CompletedTask;
     }
 
-    public async Task Send(string command)
-    {
-        if (TcpClient == null || !TcpClient.Connected)
-            await Connect();
-
-        try
-        {
-            await SendText(command + "\n");
-        }
-        catch (Exception)
-        {
-            Logger.LogTrace("An error occured while sending command. Reconnecting and trying it again");
-
-            try
-            {
-                await Disconnect();
-                await Connect();
-
-                await SendText(command + "\n");
-            }
-            catch (Exception e)
-            {
-                Logger.LogTrace("An error occured while sending packet (even after reconnecting): {e}", e);
-                throw;
-            }
-        }
-    }
-
-    public Task Send(TelnetTvCommand command)
-        => Send(EnumToCommand(command));
-
-    private async Task SendText(string input)
-    {
-        var networkStream = TcpClient!.GetStream();
-
-        var encodedCommand = Encoding.UTF8.GetBytes(input);
-
-        await networkStream.WriteAsync(encodedCommand);
-        await networkStream.FlushAsync();
-    }
+    public async Task SendCommand(string command)
+        => await Client!.WriteLineRfc854Async(command);
     
-    private string EnumToCommand(TelnetTvCommand command)
+    public async Task SendCommand(TelnetTvCommand command)
+        => await Client!.WriteLineRfc854Async(ToCommandString(command));
+
+    public async Task Disconnect()
+    {
+        if (Cancellation == null || Client == null || TcpByteStream == null)
+            return;
+
+        await Cancellation.CancelAsync();
+        
+        Client.Dispose();
+        TcpByteStream.Dispose();
+    }
+
+    private string ToCommandString(TelnetTvCommand command)
     {
         return command switch
         {

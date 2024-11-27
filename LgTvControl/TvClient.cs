@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using LgTvControl.Telnet;
 using LgTvControl.Websocket;
 using LgTvControl.Websocket.Enums;
@@ -45,7 +46,7 @@ public class TvClient
         MacAddress = macAddress;
 
         WebSocket = new(Logger, Host, websocketPort);
-        Telnet = new(Logger, Host, telnetPort);
+        Telnet = new(Host, telnetPort, Logger);
 
         InitWebSocket();
     }
@@ -96,10 +97,6 @@ public class TvClient
                 if (Telnet.IsConnected)
                     await Telnet.Disconnect();
             }
-            else if (state == WebsocketTvState.Pairing)
-            {
-                await Telnet.Connect();
-            }
 
             if (PairingTimeout != null)
             {
@@ -133,17 +130,27 @@ public class TvClient
 
                 if (AcceptMode == TvPairAcceptMode.DownEnter)
                 {
-                    await Telnet.Send(TelnetTvCommand.Down);
-                    await Task.Delay(100);
-                    await Telnet.Send(TelnetTvCommand.Enter);
+                    await Task.Delay(1000);
+                    
+                    await Telnet.Connect();
+                    
+                    await Telnet.SendCommand(TelnetTvCommand.Down);
+                    
+                    await Task.Delay(1000);
+                    
+                    await Telnet.SendCommand(TelnetTvCommand.Enter);
                 }
                 else if (AcceptMode == TvPairAcceptMode.RightEnter)
                 {
-                    await Telnet.Send(TelnetTvCommand.Right);
-
-                    await Task.Delay(500);
-
-                    await Telnet.Send(TelnetTvCommand.Enter);
+                    await Task.Delay(1000);
+                    
+                    await Telnet.Connect();
+                    
+                    await Telnet.SendCommand(TelnetTvCommand.Right);
+                    
+                    await Task.Delay(1000);
+                    
+                    await Telnet.SendCommand(TelnetTvCommand.Enter);
                 }
             }
         };
@@ -178,7 +185,6 @@ public class TvClient
         Logger.LogTrace("Connecting to television");
 
         await WebSocket.Start();
-        await Telnet.Connect();
     }
 
     public async Task ScreenOn()
@@ -261,16 +267,17 @@ public class TvClient
         => await WebSocket.Request("ssap://system/turnOff");
 
     public async Task SendCommand(TelnetTvCommand command)
-        => await Telnet.Send(command);
+        => await Telnet.SendCommand(command);
 
     public async Task SendCommandRaw(string command)
-        => await Telnet.Send(command);
+        => await Telnet.SendCommand(command);
 
     public async Task Disconnect()
     {
         Logger.LogTrace("Disconnecting from television");
 
         await WebSocket.Stop();
-        await Telnet.Disconnect();
+        
+        Telnet.Disconnect();
     }
 }

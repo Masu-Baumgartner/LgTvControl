@@ -34,10 +34,19 @@ public class TelnetTvClient
     }
 
     public async Task SendCommand(string command)
-        => await Client!.WriteLineRfc854Async(command);
+    {
+        await EnsureConnected();
+        await Client!.WriteLineRfc854Async(command);
+    }
     
     public async Task SendCommand(TelnetTvCommand command)
-        => await Client!.WriteLineRfc854Async(ToCommandString(command));
+        => await SendCommand(ToCommandString(command));
+
+    private async Task EnsureConnected()
+    {
+        if (TcpByteStream == null || Client == null || !Client.IsConnected)
+            await Connect();
+    }
 
     public async Task Disconnect()
     {

@@ -81,6 +81,10 @@ public partial class WebSocketTvClient
                 catch (Exception e)
                 {
                     Logger.LogTrace("Unable to connect to television (soft error): {e}", e);
+                    
+                    // Wait a bit to prevent spamming
+                    await Task.Delay(TimeSpan.FromSeconds(3));
+                    
                     continue;
                 }
 
@@ -189,7 +193,7 @@ public partial class WebSocketTvClient
                         {
                             Logger.LogTrace("TV is reporting too many connection attempts. Closing connection");
 
-                            // Lets wait a bit until we retry as we dont want to open too many connections
+                            // Let's wait a bit until we retry as we dont want to open too many connections
                             await Task.Delay(TimeSpan.FromSeconds(3), Cancellation.Token);
                             
                             await CloseCurrentSocket();
@@ -198,6 +202,8 @@ public partial class WebSocketTvClient
                         {
                             Logger.LogTrace("TV is reporting an invalid power state. Closing connection");
                             await CloseCurrentSocket();
+
+                            await Task.Delay(TimeSpan.FromSeconds(1));
                         }
                         else
                         {

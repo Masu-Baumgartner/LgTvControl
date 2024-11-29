@@ -15,7 +15,7 @@
         <PackageTags>lg;television;lgconnect</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
-        <Version>1.1.2</Version>
+        <Version>1.1.3</Version>
     </PropertyGroup>
 
     <ItemGroup>

@@ -115,18 +115,12 @@ public class TvClient
 
         WebSocket.OnScreenStateChanged += async state =>
         {
-            if(ScreenState == state) // Check if state actually changed
-                return;
-            
             if (OnScreenStateChanged != null)
                 await OnScreenStateChanged.Invoke(state);
         };
 
         WebSocket.OnStateChanged += async state =>
         {
-            if(WebsocketState == state) // Check if state actually changed
-                return;
-            
             if (OnWebSocketStateChanged != null)
                 await OnWebSocketStateChanged.Invoke(state);
 
@@ -163,18 +157,12 @@ public class TvClient
 
         WebSocket.OnChannelChanged += async channel =>
         {
-            if(Channel == channel) // Check if state actually changed
-                return;
-            
             if (OnChannelChanged != null)
                 await OnChannelChanged.Invoke(channel);
         };
 
         WebSocket.OnVolumeChanged += async eventData =>
         {
-            if(Volume == eventData.Volume) // Check if state actually changed
-                return;
-            
             if (OnVolumeChanged != null)
                 await OnVolumeChanged.Invoke(eventData.Volume);
         };

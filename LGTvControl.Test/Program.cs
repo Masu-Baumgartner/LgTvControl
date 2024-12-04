@@ -101,9 +101,9 @@ var logger = loggerFactory.CreateLogger("Test");
 // 172.27.21.53
 // 172.27.13.2
 
-var tv = new TvClient(logger, "172.27.13.2", "b4:b2:91:7b:09:e7");
+var tv = new TvClient(logger, "172.27.69.50", "B4:B2:91:CA:FA:2F");
 
-tv.AcceptMode = TvPairAcceptMode.RightEnter;
+tv.AcceptMode = TvPairAcceptMode.DownEnter;
 
 await tv.TurnOn();
 
@@ -136,6 +136,128 @@ tv.OnScreenStateChanged += b =>
     return Task.CompletedTask;
 };
 
+tv.OnWebSocketStateChanged += async state =>
+{
+    if(state != WebsocketTvState.Ready)
+        return;
+
+    Task.Run(async () =>
+    {
+        await tv.GetTimers();
+        //await DeleteOffTimers();
+    });
+};
+
 await tv.Connect();
 
 await Task.Delay(-1);
+
+async Task DeleteOffTimers()
+{
+    await tv.SendCommand(TelnetTvCommand.Menu);
+    await Task.Delay(2000);
+
+    for (int i = 0; i < 6; i++)
+    {
+        await tv.SendCommand(TelnetTvCommand.Down);
+        await Task.Delay(1000);
+    }
+    
+    await tv.SendCommand(TelnetTvCommand.Enter);
+    
+    await Task.Delay(5000);
+    
+    for (int i = 0; i < 2; i++)
+    {
+        await tv.SendCommand(TelnetTvCommand.Down);
+        await Task.Delay(1000);
+    }
+    
+    await tv.SendCommand(TelnetTvCommand.Right);
+    await Task.Delay(1000);
+    
+    for (int i = 0; i < 4; i++)
+    {
+        await tv.SendCommand(TelnetTvCommand.Down);
+        await Task.Delay(1000);
+    }
+    
+    await tv.SendCommand(TelnetTvCommand.Enter);
+    await Task.Delay(1000);
+    
+    for (int i = 0; i < 2; i++)
+    {
+        await tv.SendCommand(TelnetTvCommand.Down);
+        await Task.Delay(1000);
+    }
+    
+    await tv.SendCommand(TelnetTvCommand.Enter);
+    await Task.Delay(1000);
+    
+    for (int i = 0; i < 5; i++)
+    {
+        await tv.SendCommand(TelnetTvCommand.Down);
+        await Task.Delay(1000);
+    }
+    
+    await tv.SendCommand(TelnetTvCommand.Enter);
+    await Task.Delay(1000);
+    
+    for (int i = 0; i < 2; i++)
+    {
+        await tv.SendCommand(TelnetTvCommand.Down);
+        await Task.Delay(1000);
+    }
+    
+    await tv.SendCommand(TelnetTvCommand.Enter);
+    await Task.Delay(5000);
+    
+    await tv.SendCommand(TelnetTvCommand.Enter);
+    await Task.Delay(2000);
+    
+    // To ensure we are on the top, we spam this a bit
+    for (int i = 0; i < 4; i++)
+    {
+        await tv.SendCommand(TelnetTvCommand.Up);
+        await Task.Delay(500);
+    }
+    
+    await tv.SendCommand(TelnetTvCommand.Down);
+    await Task.Delay(1000);
+    
+    await tv.SendCommand(TelnetTvCommand.Left);
+    await Task.Delay(1000);
+    
+    await tv.SendCommand(TelnetTvCommand.Enter);
+    await Task.Delay(1000);
+    
+    await tv.SendCommand(TelnetTvCommand.Enter);
+    await Task.Delay(1000);
+    
+    await tv.SendCommand(TelnetTvCommand.Down);
+    await Task.Delay(1000);
+    
+    await tv.SendCommand(TelnetTvCommand.Right);
+    await Task.Delay(1000);
+    
+    await tv.SendCommand(TelnetTvCommand.Enter);
+    await Task.Delay(1000);
+    
+    await tv.SendCommand(TelnetTvCommand.Up);
+    await Task.Delay(1000);
+    
+    await tv.SendCommand(TelnetTvCommand.Enter);
+    await Task.Delay(1000);
+    
+    // To ensure we are on the top, we spam this a bit
+    for (int i = 0; i < 4; i++)
+    {
+        await tv.SendCommand(TelnetTvCommand.Up);
+        await Task.Delay(500);
+    }
+    
+    await tv.SendCommand(TelnetTvCommand.Enter);
+    await Task.Delay(2000);
+    
+    await tv.SendCommand(TelnetTvCommand.Return);
+}

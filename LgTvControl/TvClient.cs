@@ -131,25 +131,25 @@ public class TvClient
                 if (AcceptMode == TvPairAcceptMode.DownEnter)
                 {
                     await Task.Delay(1000);
-                    
+
                     await Telnet.Connect();
-                    
+
                     await Telnet.SendCommand(TelnetTvCommand.Down);
-                    
+
                     await Task.Delay(1000);
-                    
+
                     await Telnet.SendCommand(TelnetTvCommand.Enter);
                 }
                 else if (AcceptMode == TvPairAcceptMode.RightEnter)
                 {
                     await Task.Delay(1000);
-                    
+
                     await Telnet.Connect();
-                    
+
                     await Telnet.SendCommand(TelnetTvCommand.Right);
-                    
+
                     await Task.Delay(1000);
-                    
+
                     await Telnet.SendCommand(TelnetTvCommand.Enter);
                 }
             }
@@ -272,12 +272,24 @@ public class TvClient
     public async Task SendCommandRaw(string command)
         => await Telnet.SendCommand(command);
 
+    public async Task GetTimers()
+    {
+        await WebSocket.Request("ssap://timer/getSettings", new GetTimerSettingsRequest()
+        {
+            Keys =
+            [
+                "onTimerEnabley"
+            ],
+            IsSubscription = false
+        });
+    }
+
     public async Task Disconnect()
     {
         Logger.LogTrace("Disconnecting from television");
 
         await WebSocket.Stop();
-        
-        Telnet.Disconnect();
+
+        await Telnet.Disconnect();
     }
 }

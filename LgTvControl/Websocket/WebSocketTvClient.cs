@@ -81,10 +81,10 @@ public partial class WebSocketTvClient
                 catch (Exception e)
                 {
                     Logger.LogTrace("Unable to connect to television (soft error): {e}", e);
-                    
+
                     // Wait a bit to prevent spamming
                     await Task.Delay(TimeSpan.FromSeconds(3));
-                    
+
                     continue;
                 }
 
@@ -120,7 +120,7 @@ public partial class WebSocketTvClient
                             {
                                 Subscriptions.Clear();
                             }
-                            
+
                             await UpdateState(WebsocketTvState.Ready);
 
                             var pairingResponse = JsonSerializer.Deserialize<TypedBasePacket<PairingResponse>>(text);
@@ -155,7 +155,10 @@ public partial class WebSocketTvClient
 
                             await Subscribe<CurrentChannelResponse>("ssap://tv/getCurrentChannel", async response =>
                             {
-                                CurrentChannel = int.Parse(response.ChannelNumber);
+                                if (!int.TryParse(response.ChannelNumber, out var channel))
+                                    CurrentChannel = 0;
+                                else
+                                    CurrentChannel = channel;
 
                                 if (OnChannelChanged == null)
                                     return;
@@ -195,7 +198,7 @@ public partial class WebSocketTvClient
 
                             // Let's wait a bit until we retry as we dont want to open too many connections
                             await Task.Delay(TimeSpan.FromSeconds(3), Cancellation.Token);
-                            
+
                             await CloseCurrentSocket();
                         }
                         else if (text.Contains("403 Error!! power state"))

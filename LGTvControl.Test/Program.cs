@@ -136,6 +136,18 @@ tv.OnScreenStateChanged += b =>
     return Task.CompletedTask;
 };
 
+tv.OnInputChanged += input =>
+{
+    logger.LogDebug("Input: {input}", input);
+    return Task.CompletedTask;
+};
+
+tv.OnMuteChanged += mute =>
+{
+    logger.LogDebug("Mute: {mute}", mute);
+    return Task.CompletedTask;
+};
+
 tv.OnWebSocketStateChanged += async state =>
 {
     if(state != WebsocketTvState.Ready)
@@ -143,17 +155,43 @@ tv.OnWebSocketStateChanged += async state =>
 
     Task.Run(async () =>
     {
-        await tv.GetTimers();
-        //await DeleteOffTimers();
+        await Task.Delay(5000);
+
+        await tv.SetMute(true);
+
+/*
+        await tv.SwitchInput(TelevisionInput.Hdmi1);
+
+        await Task.Delay(5000);
+
+        await tv.SwitchInput(TelevisionInput.Browser, "http://172.27.64.103:8080");
+
+        await Task.Delay(5000);
+
+        await tv.SwitchInput(TelevisionInput.LiveTv);*/
     });
+
+/*
+    await tv.LaunchWebBrowser("http://172.27.64.103:8080");
+
+    await Task.Delay(10000);
+
+    await tv.SwitchToLiveTv();
+    await tv.CloseWebBrowser();*/
+
+    //await tv.SwitchInput(TelevisionInput.HDMI1);
 };
 
 await tv.Connect();
 
 await Task.Delay(-1);
 
+#region Fun
+/*
 async Task DeleteOffTimers()
 {
+    Console.WriteLine("Running");
+    
     await tv.SendCommand(TelnetTvCommand.Menu);
     await Task.Delay(2000);
 
@@ -260,4 +298,6 @@ async Task DeleteOffTimers()
     await Task.Delay(2000);
     
     await tv.SendCommand(TelnetTvCommand.Return);
-}
+}*/
+
+#endregion

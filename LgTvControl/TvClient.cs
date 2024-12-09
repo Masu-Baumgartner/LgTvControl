@@ -21,6 +21,8 @@ public class TvClient
     public event Func<bool, Task> OnScreenStateChanged;
     public event Func<int, Task> OnChannelChanged;
     public event Func<int, Task> OnVolumeChanged;
+    public event Func<bool, Task> OnMuteChanged;
+    public event Func<TelevisionInput, Task> OnInputChanged;
     public event Func<string, Task> OnUnknownPacketReceived;
 
     // Proxy properties
@@ -29,6 +31,8 @@ public class TvClient
     public int Volume => WebSocket.CurrentVolume;
     public int Channel => WebSocket.CurrentChannel;
     public bool ScreenState => WebSocket.CurrentScreenState;
+    public TelevisionInput Input => WebSocket.CurrentInput;
+    public bool Mute => WebSocket.CurrentMute;
 
     private readonly ILogger Logger;
     private readonly string Host;
@@ -166,6 +170,18 @@ public class TvClient
             if (OnVolumeChanged != null)
                 await OnVolumeChanged.Invoke(eventData.Volume);
         };
+        
+        WebSocket.OnInputChanged += async eventData =>
+        {
+            if (OnInputChanged != null)
+                await OnInputChanged.Invoke(eventData);
+        };
+        
+        WebSocket.OnMuteChanged += async eventData =>
+        {
+            if (OnMuteChanged != null)
+                await OnMuteChanged.Invoke(eventData);
+        };
 
         WebSocket.OnClientKeyChanged += async clientKey =>
         {
@@ -271,16 +287,76 @@ public class TvClient
 
     public async Task SendCommandRaw(string command)
         => await Telnet.SendCommand(command);
-
-    public async Task GetTimers()
+    
+    public async Task SwitchToLiveTv()
     {
-        await WebSocket.Request("ssap://timer/getSettings", new GetTimerSettingsRequest()
+        await WebSocket.Request("ssap://com.webos.applicationManager/launch", new LaunchAppRequest()
         {
-            Keys =
-            [
-                "onTimerEnabley"
-            ],
-            IsSubscription = false
+            Id = "com.webos.app.livetv"
+        });
+    }
+
+    public async Task CloseWebBrowser()
+    {
+        await WebSocket.Request("ssap://system.launcher/close", new CloseAppRequest()
+        {
+            Id = "com.webos.app.browser"
+        });
+    }
+
+    public async Task LaunchWebBrowser(string uri)
+    {
+        await WebSocket.Request("ssap://system.launcher/launch", new LaunchWebBrowserRequest()
+        {
+            Id = "com.webos.app.browser",
+            Target = uri,
+            Params = new()
+            {
+                Target = uri
+            }
+        });
+    }
+
+    public async Task SwitchInput(TelevisionInput input, string? parameter = null)
+    {
+        // Close current browser
+        if (WebSocket.CurrentInput == TelevisionInput.Browser)
+            await CloseWebBrowser();
+        
+        // Handle new input
+        if (input == TelevisionInput.LiveTv)
+            await SwitchToLiveTv();
+        else if(input == TelevisionInput.Browser)
+        {
+            parameter = parameter ?? "https://google.com";
+            await LaunchWebBrowser(parameter);
+        }
+        else
+        {
+            // Handle all other inputs
+            var inputId = input switch
+            {
+                TelevisionInput.Hdmi1 => "HDMI_1",
+                TelevisionInput.Hdmi2 => "HDMI_2",
+                TelevisionInput.Hdmi3 => "HDMI_3",
+                _ => ""
+            };
+
+            if (!string.IsNullOrEmpty(inputId)) // When a valid input id is found, switch to it
+            {
+                await WebSocket.Request("ssap://tv/switchInput", new SwitchInputRequest()
+                {
+                    InputId = inputId
+                });
+            }
+        }
+    }
+
+    public async Task SetMute(bool mute)
+    {
+        await WebSocket.Request("ssap://audio/setMute", new SetMuteRequest()
+        {
+            Mute = mute
         });
     }
 

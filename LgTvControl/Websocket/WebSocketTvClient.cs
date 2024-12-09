@@ -19,11 +19,15 @@ public partial class WebSocketTvClient
     public int CurrentChannel { get; set; } = -1;
     public int CurrentVolume { get; set; } = -1;
     public bool CurrentScreenState { get; set; }
+    public TelevisionInput CurrentInput { get; set; } = TelevisionInput.Unknown;
+    public bool CurrentMute { get; set; }
 
     public event Func<WebsocketTvState, Task> OnStateChanged;
     public event Func<string, Task> OnClientKeyChanged;
     public event Func<bool, Task> OnScreenStateChanged;
     public event Func<int, Task> OnChannelChanged;
+    public event Func<bool, Task> OnMuteChanged;
+    public event Func<TelevisionInput, Task> OnInputChanged;
     public event Func<VolumeChangeEvent, Task> OnVolumeChanged;
     public event Func<string, Task> OnUnknownPacketReceived;
 
@@ -92,7 +96,7 @@ public partial class WebSocketTvClient
 
                 while (Connection.State == WebSocketState.Open)
                 {
-                    var buffer = new byte[1024];
+                    var buffer = new byte[2048];
 
                     try
                     {
@@ -185,6 +189,35 @@ public partial class WebSocketTvClient
                                     Volume = CurrentVolume,
                                     ViaRemote = viaRemote
                                 });
+                            });
+
+                            await Subscribe<ForegroundAppInfoResponse>("ssap://com.webos.applicationManager/getForegroundAppInfo", async response =>
+                            {
+                                if(string.IsNullOrEmpty(response.AppId))
+                                    return;
+
+                                var input = response.AppId switch
+                                {
+                                    "com.webos.app.livetv" => TelevisionInput.LiveTv,
+                                    "com.webos.app.browser" => TelevisionInput.Browser,
+                                    "com.webos.app.hdmi1" => TelevisionInput.Hdmi1,
+                                    "com.webos.app.hdmi2" => TelevisionInput.Hdmi2,
+                                    "com.webos.app.hdmi3" => TelevisionInput.Hdmi3,
+                                    _ => TelevisionInput.Unknown
+                                };
+
+                                CurrentInput = input;
+                                
+                                if(OnInputChanged != null)
+                                    await OnInputChanged.Invoke(input);
+                            });
+                            
+                            await Subscribe<MuteStatusResponse>("ssap://audio/getMute", async response =>
+                            {
+                                CurrentMute = response.Mute;
+
+                                if (OnMuteChanged != null)
+                                    await OnMuteChanged.Invoke(response.Mute);
                             });
                         }
                         else if (text.Contains("pairingType\":\"PROMPT"))

@@ -52,6 +52,11 @@ public class LgConnectClient
         return Task.CompletedTask;
     }
 
+    public async Task Stop()
+    {
+        await Cancellation.CancelAsync();
+    }
+
     private async Task Loop()
     {
         while (!Cancellation.IsCancellationRequested)

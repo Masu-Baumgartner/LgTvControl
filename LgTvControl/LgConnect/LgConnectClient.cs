@@ -15,16 +15,21 @@ public class LgConnectClient
     public int Channel { get; private set; }
     public int Volume { get; private set; }
     public bool ScreenOn { get; private set; }
+    public LgConnectInput Input { get; private set; } = LgConnectInput.Unknown;
     public LgConnectState State { get; private set; } = LgConnectState.Offline;
+    public bool Mute { get; private set; }
 
-    public event Func<string, Task>? OnMessageReceived; 
+    public event Func<string, Task>? OnMessageReceived;
     public event Func<LgConnectState, Task>? OnStateChanged;
     public event Func<Exception, Task>? OnWebsocketError;
     public event Func<Exception, Task>? OnMessageError;
+    public event Func<Exception, Task>? OnSubscriptionError;
     public event Func<string, Task>? OnClientKeyChanged;
     public event Func<bool, Task>? OnScreenStateChanged;
     public event Func<int, Task>? OnChannelChanged;
-    public event Func<int, Task>? OnVolumeChanged; 
+    public event Func<int, Task>? OnVolumeChanged;
+    public event Func<bool, Task>? OnMuteChanged;
+    public event Func<LgConnectInput, Task>? OnInputChanged;
 
     private readonly string Host;
     private readonly int Port;
@@ -218,6 +223,46 @@ public class LgConnectClient
             else
             {
                 // Everything else should be a subscription
+                LgConnectSubscription? subscription;
+
+                lock (Subscriptions)
+                {
+                    subscription = Subscriptions
+                        .FirstOrDefault(x => x.PacketId == basePacket.Id);
+                }
+
+                if (subscription == null)
+                    return;
+
+                var payloadPacket = JsonSerializer.Deserialize(
+                    message,
+                    typeof(BasePacket<>).MakeGenericType(subscription.PayloadType)
+                );
+
+                if (payloadPacket == null)
+                    return;
+
+                var payload = payloadPacket
+                    .GetType()
+                    .GetProperty("Payload")!
+                    .GetValue(payloadPacket);
+
+                var funcType = typeof(Func<,>).MakeGenericType(subscription.PayloadType, typeof(Task));
+                var funcInvokeMethod = funcType.GetMethod("Invoke")!;
+
+                foreach (var callback in subscription.Callbacks)
+                {
+                    try
+                    {
+                        var invokeTask = funcInvokeMethod.Invoke(callback, [payload]) as Task;
+                        await invokeTask!;
+                    }
+                    catch (Exception e)
+                    {
+                        if (OnSubscriptionError != null)
+                            await OnSubscriptionError.Invoke(e);
+                    }
+                }
             }
         }
         catch (Exception e)
@@ -333,7 +378,11 @@ public class LgConnectClient
         packet.Id = Prefix + customId;
 
         // Serialize and encode
-        var json = JsonSerializer.Serialize(packet);
+        var json = JsonSerializer.Serialize(
+            packet,
+            packet.GetType() // This makes sure that the correct type is used of serialisation
+        );
+
         var bytes = Encoding.UTF8.GetBytes(json);
         await Send(bytes);
     }
@@ -399,18 +448,50 @@ public class LgConnectClient
 
         await Subscribe<CurrentChannelResponse>("ssap://tv/getCurrentChannel", async response =>
         {
-            Channel = int.Parse(response.ChannelNumber);
+            if (int.TryParse(response.ChannelNumber, out var parsedNumber))
+                Channel = parsedNumber;
+            else
+                Channel = -1;
 
             if (OnChannelChanged != null)
                 await OnChannelChanged.Invoke(Channel);
+        });
+        
+        await Subscribe<ForegroundAppInfoResponse>("ssap://com.webos.applicationManager/getForegroundAppInfo", async response =>
+        {
+            if(string.IsNullOrEmpty(response.AppId))
+                return;
+
+            var input = response.AppId switch
+            {
+                "com.webos.app.livetv" => LgConnectInput.LiveTv,
+                "com.webos.app.browser" => LgConnectInput.Browser,
+                "com.webos.app.hdmi1" => LgConnectInput.Hdmi1,
+                "com.webos.app.hdmi2" => LgConnectInput.Hdmi2,
+                "com.webos.app.hdmi3" => LgConnectInput.Hdmi3,
+                _ => LgConnectInput.Unknown
+            };
+
+            Input = input;
+                                
+            if(OnInputChanged != null)
+                await OnInputChanged.Invoke(input);
         });
 
         await Subscribe<AudioStatusResponse>("ssap://audio/getStatus", async response =>
         {
             Volume = response.Volume;
-            
+
             if (OnVolumeChanged != null)
                 await OnVolumeChanged.Invoke(Volume);
+        });
+        
+        await Subscribe<MuteStatusResponse>("ssap://audio/getMute", async response =>
+        {
+            Mute = response.Mute;
+
+            if (OnMuteChanged != null)
+                await OnMuteChanged.Invoke(response.Mute);
         });
     }
 

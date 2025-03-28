@@ -11,6 +11,9 @@ var lgConnect = new LgConnectClient("172.27.69.50", 3000);
 
 lgConnect.OnWebsocketError += async e => Console.WriteLine(e);
 lgConnect.OnMessageError += async e => Console.WriteLine(e);
+lgConnect.OnSubscriptionError += async e => Console.WriteLine(e);
+
+lgConnect.OnVolumeChanged += async i => Console.WriteLine(i);
 
 lgConnect.OnStateChanged += async state =>
 {

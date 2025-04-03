@@ -5,6 +5,7 @@ namespace LgTvControl.IpControl;
 public class IpControlConnection
 {
     public event Func<string, Task>? OnMessageReceived;
+    public event Func<Exception, Task>? OnError; 
 
     public bool IsConnected => TcpClient.Connected;
     
@@ -53,23 +54,39 @@ public class IpControlConnection
 
     private void OnWriteEnd(IAsyncResult ar)
     {
-        NetworkStream.EndWrite(ar);
-        NetworkStream.Flush();
+        try
+        {
+            NetworkStream.EndWrite(ar);
+            NetworkStream.Flush();
+        }
+        catch (Exception e)
+        {
+            if(OnError != null)
+                OnError.Invoke(e).Wait();
+        }
     }
     
     private void OnReadEnd(IAsyncResult ar)
     {
-        var bytesRead = NetworkStream.EndRead(ar);
-        var resizedBuffer = new byte[bytesRead];
-        Array.Copy(ReadBuffer, resizedBuffer, bytesRead);
-        
-        if(TcpClient.Connected)
-            NetworkStream.BeginRead(ReadBuffer, 0, ReadBuffer.Length, OnReadEnd, null);
+        try
+        {
+            var bytesRead = NetworkStream.EndRead(ar);
+            var resizedBuffer = new byte[bytesRead];
+            Array.Copy(ReadBuffer, resizedBuffer, bytesRead);
 
-        var decodedMessage = ControlEncryption.Decode(resizedBuffer);
+            if (TcpClient.Connected)
+                NetworkStream.BeginRead(ReadBuffer, 0, ReadBuffer.Length, OnReadEnd, null);
 
-        if (OnMessageReceived != null)
-            OnMessageReceived.Invoke(decodedMessage).Wait();
+            var decodedMessage = ControlEncryption.Decode(resizedBuffer);
+
+            if (OnMessageReceived != null)
+                OnMessageReceived.Invoke(decodedMessage).Wait();
+        }
+        catch (Exception e)
+        {
+            if(OnError != null)
+                OnError.Invoke(e).Wait();
+        }
     }
 
     #endregion

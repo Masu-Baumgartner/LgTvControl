@@ -57,6 +57,14 @@ public class LgConnectClient
         return Task.CompletedTask;
     }
 
+    public async Task Reconnect()
+    {
+        if(WebSocket == null || WebSocket.State != WebSocketState.Open)
+            return;
+        
+        await WebSocket.CloseOutputAsync(WebSocketCloseStatus.Empty, null, Cancellation.Token);
+    }
+
     public async Task Stop()
     {
         await Cancellation.CancelAsync();
